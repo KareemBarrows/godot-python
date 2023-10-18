@@ -114,7 +114,9 @@ def symlink(src: Path, dst: Path) -> None:
         os.symlink(str(src.resolve()), str(dst.resolve()))
 
 
-def create_test_workdir(test_dir: Path, distrib_workdir: Path, test_workdir: Path) -> None:
+def create_test_workdir(
+    test_dir: Path, distrib_workdir: Path, test_workdir: Path, copy_gdextension_api: bool
+) -> None:
     print(
         f"{YELLOW}{test_dir.name}: Create&populate test workdir in {test_workdir}{NO_COLOR}",
         flush=True,
@@ -123,7 +125,10 @@ def create_test_workdir(test_dir: Path, distrib_workdir: Path, test_workdir: Pat
     symlink(distrib_workdir / "addons", test_workdir / "addons")
     shutil.copy(distrib_workdir / "pythonscript.gdextension", test_workdir)
     # GDExtension headers are needed to compile Cython modules
-    symlink(build_dir / "gdextension_api", test_workdir / "gdextension_api")
+    if copy_gdextension_api:
+        shutil.copytree(build_dir / "gdextension_api", test_workdir / "gdextension_api")
+    else:
+        symlink(build_dir / "gdextension_api", test_workdir / "gdextension_api")
 
     build_script = test_workdir / "build.py"
     if build_script.exists():
@@ -237,6 +242,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("tests", nargs="*", help="Filter the tests to run")
     parser.add_argument(
+        "--copy-gdextension-api",
+        action="store_true",
+        help="Copy GDExtension API folder instead of symlink (useful if you have issues on Windows)",
+    )
+    parser.add_argument(
         "--build-dir",
         type=Path,
         required=True,
@@ -312,5 +322,6 @@ if __name__ == "__main__":
                 test_dir=test_dir,
                 distrib_workdir=distrib_workdir,
                 test_workdir=test_workdir,
+                copy_gdextension_api=args.copy_gdextension_api,
             )
             run_test(test_dir.name, test_workdir, godot_binary_path, godot_extra_args)
